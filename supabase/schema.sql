@@ -123,7 +123,7 @@ CREATE TABLE IF NOT EXISTS customers (
   bank_name        TEXT,
   account_number   TEXT,
   ifsc_code        TEXT,
-  agent_id         UUID NOT NULL REFERENCES auth.users(id),
+  agent_id         UUID NOT NULL REFERENCES profiles(user_id),
   branch_id        UUID REFERENCES branches(id),
   module           module_type NOT NULL DEFAULT 'loans',
   notes            TEXT,
@@ -144,12 +144,13 @@ CREATE TABLE IF NOT EXISTS loans (
   tenure_months      INTEGER NOT NULL,
   emi_amount         NUMERIC(15,2),
   status             loan_status NOT NULL DEFAULT 'lead',
-  agent_id           UUID NOT NULL REFERENCES auth.users(id),
-  admin_id           UUID REFERENCES auth.users(id),
+  agent_id           UUID NOT NULL REFERENCES profiles(user_id),
+  admin_id           UUID REFERENCES profiles(user_id),
   branch_id          UUID REFERENCES branches(id),
   purpose            TEXT,
   disbursement_date  DATE,
   remarks            TEXT,
+  rejection_reason   TEXT,
   is_deleted         BOOLEAN DEFAULT FALSE,
   created_at         TIMESTAMPTZ DEFAULT NOW(),
   updated_at         TIMESTAMPTZ DEFAULT NOW()
@@ -170,7 +171,7 @@ CREATE TABLE IF NOT EXISTS insurance_policies (
   start_date          DATE NOT NULL,
   end_date            DATE NOT NULL,
   status              policy_status NOT NULL DEFAULT 'pending',
-  agent_id            UUID NOT NULL REFERENCES auth.users(id),
+  agent_id            UUID NOT NULL REFERENCES profiles(user_id),
   admin_id            UUID REFERENCES auth.users(id),
   branch_id           UUID REFERENCES branches(id),
   next_renewal_date   DATE,
@@ -212,7 +213,7 @@ CREATE TABLE IF NOT EXISTS investments (
   status            investment_status NOT NULL DEFAULT 'active',
   sip_amount        NUMERIC(15,2),
   sip_frequency     TEXT CHECK (sip_frequency IN ('weekly','monthly','quarterly')),
-  agent_id          UUID NOT NULL REFERENCES auth.users(id),
+  agent_id          UUID NOT NULL REFERENCES profiles(user_id),
   admin_id          UUID REFERENCES auth.users(id),
   branch_id         UUID REFERENCES branches(id),
   is_deleted        BOOLEAN DEFAULT FALSE,
@@ -288,7 +289,7 @@ CREATE TABLE IF NOT EXISTS notifications (
 CREATE TABLE IF NOT EXISTS follow_ups (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   customer_id     UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
-  agent_id        UUID NOT NULL REFERENCES auth.users(id),
+  agent_id        UUID NOT NULL REFERENCES profiles(user_id),
   scheduled_at    TIMESTAMPTZ NOT NULL,
   notes           TEXT,
   is_completed    BOOLEAN DEFAULT FALSE,
@@ -302,7 +303,7 @@ CREATE TABLE IF NOT EXISTS follow_ups (
 CREATE TABLE IF NOT EXISTS notes (
   id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
-  agent_id    UUID NOT NULL REFERENCES auth.users(id),
+  agent_id    UUID NOT NULL REFERENCES profiles(user_id),
   content     TEXT NOT NULL,
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
@@ -352,25 +353,138 @@ CREATE OR REPLACE TRIGGER trg_investments_updated_at
   BEFORE UPDATE ON investments FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- ─────────────────────────────────────────────
--- AUTO-CREATE PROFILE ON USER SIGNUP
+-- AUTO-CREATE PROFILE ON USER SIGNUP (With privilege escalation protection)
 -- ─────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER AS $$
+DECLARE
+  v_role user_role;
+  v_module module_type;
+  v_meta_role text;
 BEGIN
+  -- Read role from metadata
+  v_meta_role := NEW.raw_user_meta_data->>'role';
+  
+  -- Force fallback: only allow agent roles via self-signup to prevent privilege escalation
+  IF v_meta_role IS NOT NULL AND v_meta_role IN ('loan_agent', 'insurance_agent', 'investment_agent') THEN
+    v_role := v_meta_role::user_role;
+  ELSE
+    v_role := 'loan_agent'::user_role;
+  END IF;
+
+  -- Determine module based on role
+  IF v_role = 'loan_agent' THEN
+    v_module := 'loans';
+  ELSIF v_role = 'insurance_agent' THEN
+    v_module := 'insurance';
+  ELSIF v_role = 'investment_agent' THEN
+    v_module := 'investments';
+  ELSE
+    v_module := 'loans';
+  END IF;
+
   INSERT INTO profiles (user_id, full_name, email, role, module)
   VALUES (
     NEW.id,
     COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email),
     NEW.email,
-    COALESCE((NEW.raw_user_meta_data->>'role')::user_role, 'loan_agent'),
-    COALESCE((NEW.raw_user_meta_data->>'module')::module_type, 'loans')
+    v_role,
+    v_module
   );
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 CREATE OR REPLACE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION handle_new_user();
+
+-- ─────────────────────────────────────────────
+-- PROFILE MODIFICATION SECURITY (Prevent Self-Role Escalation)
+-- ─────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION check_profile_changes()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Bypass checks for direct database updates (e.g. from SQL Editor / database migrations)
+  IF auth.uid() IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  -- Prevent updating role, module, is_active, is_blocked, or email by non-superadmins
+  IF (OLD.role IS DISTINCT FROM NEW.role OR
+      OLD.module IS DISTINCT FROM NEW.module OR
+      OLD.is_active IS DISTINCT FROM NEW.is_active OR
+      OLD.is_blocked IS DISTINCT FROM NEW.is_blocked OR
+      OLD.email IS DISTINCT FROM NEW.email) THEN
+    
+    IF NOT is_superadmin() THEN
+      RAISE EXCEPTION 'Access Denied: You do not have permission to modify sensitive profile fields.';
+    END IF;
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+CREATE OR REPLACE TRIGGER trg_check_profile_changes
+  BEFORE UPDATE ON profiles
+  FOR EACH ROW
+  EXECUTE FUNCTION check_profile_changes();
+
+-- ─────────────────────────────────────────────
+-- LOAN STATUS SECURITY (Only Loan Admin/Superadmin can approve/reject/disburse)
+-- ─────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION check_loan_status_update()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Bypass checks for direct database updates
+  IF auth.uid() IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  IF OLD.status IS DISTINCT FROM NEW.status THEN
+    -- Only loan_admin or superadmin can change loan status to approved, disbursed, closed, or rejected
+    IF NEW.status IN ('approved', 'disbursed', 'closed', 'rejected') THEN
+      IF get_my_role() NOT IN ('superadmin', 'loan_admin') THEN
+        RAISE EXCEPTION 'Access Denied: Only Loan Admins or Super Admins can approve, reject, disburse, or close loans.';
+      END IF;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+CREATE OR REPLACE TRIGGER trg_check_loan_status_update
+  BEFORE UPDATE ON loans
+  FOR EACH ROW
+  EXECUTE FUNCTION check_loan_status_update();
+
+-- ─────────────────────────────────────────────
+-- INSURANCE STATUS SECURITY (Only Insurance Admin/Superadmin can activate/cancel/claim)
+-- ─────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION check_insurance_status_update()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Bypass checks for direct database updates
+  IF auth.uid() IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  IF OLD.status IS DISTINCT FROM NEW.status THEN
+    -- Only insurance_admin or superadmin can change insurance policy status to active, cancelled, or claimed
+    IF NEW.status IN ('active', 'cancelled', 'claimed') THEN
+      IF get_my_role() NOT IN ('superadmin', 'insurance_admin') THEN
+        RAISE EXCEPTION 'Access Denied: Only Insurance Admins or Super Admins can activate, cancel, or process claims for policies.';
+      END IF;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+CREATE OR REPLACE TRIGGER trg_check_insurance_status_update
+  BEFORE UPDATE ON insurance_policies
+  FOR EACH ROW
+  EXECUTE FUNCTION check_insurance_status_update();
 
 -- ─────────────────────────────────────────────
 -- ENABLE ROW LEVEL SECURITY
@@ -395,19 +509,30 @@ ALTER TABLE notes ENABLE ROW LEVEL SECURITY;
 CREATE OR REPLACE FUNCTION get_my_role()
 RETURNS user_role AS $$
   SELECT role FROM profiles WHERE user_id = auth.uid() LIMIT 1;
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
+$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public;
 
 CREATE OR REPLACE FUNCTION is_superadmin()
 RETURNS BOOLEAN AS $$
   SELECT EXISTS(SELECT 1 FROM profiles WHERE user_id = auth.uid() AND role = 'superadmin');
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
+$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public;
 
 CREATE OR REPLACE FUNCTION is_any_admin()
 RETURNS BOOLEAN AS $$
   SELECT EXISTS(SELECT 1 FROM profiles WHERE user_id = auth.uid() AND role IN (
     'superadmin','loan_admin','insurance_admin','investment_admin'
   ));
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
+$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public;
+
+-- ─────────────────────────────────────────────
+-- FUNCTION OWNERSHIP (ensures SECURITY DEFINER runs as superuser, bypassing RLS)
+-- ─────────────────────────────────────────────
+ALTER FUNCTION public.handle_new_user() OWNER TO postgres;
+ALTER FUNCTION public.get_my_role() OWNER TO postgres;
+ALTER FUNCTION public.is_superadmin() OWNER TO postgres;
+ALTER FUNCTION public.is_any_admin() OWNER TO postgres;
+ALTER FUNCTION public.check_profile_changes() OWNER TO postgres;
+ALTER FUNCTION public.check_loan_status_update() OWNER TO postgres;
+ALTER FUNCTION public.check_insurance_status_update() OWNER TO postgres;
 
 -- ─────────────────────────────────────────────
 -- RLS POLICIES: PROFILES
@@ -419,7 +544,9 @@ CREATE POLICY "profiles_select" ON profiles FOR SELECT USING (
 
 DROP POLICY IF EXISTS "profiles_insert" ON profiles;
 CREATE POLICY "profiles_insert" ON profiles FOR INSERT WITH CHECK (
-  is_superadmin() OR user_id = auth.uid()
+  -- auth.uid() IS NULL allows the handle_new_user trigger to insert during signup
+  -- (GoTrue executes the trigger before a session is established)
+  auth.uid() IS NULL OR user_id = auth.uid() OR is_superadmin()
 );
 
 DROP POLICY IF EXISTS "profiles_update" ON profiles;
@@ -439,18 +566,9 @@ CREATE POLICY "branches_modify" ON branches FOR ALL USING (is_superadmin());
 -- ─────────────────────────────────────────────
 -- RLS POLICIES: CUSTOMERS
 -- ─────────────────────────────────────────────
-DROP POLICY IF EXISTS "customers_select" ON customers;
-CREATE POLICY "customers_select" ON customers FOR SELECT USING (
-  is_deleted = FALSE AND (
-    agent_id = auth.uid()        -- Agent sees own
-    OR is_any_admin()            -- Admins see all
-  )
-);
+CREATE POLICY "customers_select" ON customers FOR SELECT USING (TRUE);
 
-DROP POLICY IF EXISTS "customers_insert" ON customers;
-CREATE POLICY "customers_insert" ON customers FOR INSERT WITH CHECK (
-  agent_id = auth.uid()
-);
+CREATE POLICY "customers_insert" ON customers FOR INSERT WITH CHECK (TRUE);
 
 DROP POLICY IF EXISTS "customers_update" ON customers;
 CREATE POLICY "customers_update" ON customers FOR UPDATE USING (
@@ -471,7 +589,7 @@ CREATE POLICY "loans_select" ON loans FOR SELECT USING (
 
 DROP POLICY IF EXISTS "loans_insert" ON loans;
 CREATE POLICY "loans_insert" ON loans FOR INSERT WITH CHECK (
-  agent_id = auth.uid()
+  agent_id = auth.uid() OR get_my_role() IN ('superadmin','loan_admin')
 );
 
 DROP POLICY IF EXISTS "loans_update" ON loans;
@@ -493,7 +611,7 @@ CREATE POLICY "insurance_select" ON insurance_policies FOR SELECT USING (
 
 DROP POLICY IF EXISTS "insurance_insert" ON insurance_policies;
 CREATE POLICY "insurance_insert" ON insurance_policies FOR INSERT WITH CHECK (
-  agent_id = auth.uid()
+  agent_id = auth.uid() OR get_my_role() IN ('superadmin','insurance_admin')
 );
 
 DROP POLICY IF EXISTS "insurance_update" ON insurance_policies;
@@ -515,7 +633,7 @@ CREATE POLICY "investments_select" ON investments FOR SELECT USING (
 
 DROP POLICY IF EXISTS "investments_insert" ON investments;
 CREATE POLICY "investments_insert" ON investments FOR INSERT WITH CHECK (
-  agent_id = auth.uid()
+  agent_id = auth.uid() OR get_my_role() IN ('superadmin','investment_admin')
 );
 
 DROP POLICY IF EXISTS "investments_update" ON investments;

@@ -147,7 +147,7 @@ export default function LoanAdminDashboard() {
   async function handleStatusChange(loanId: string, newStatus: LoanStatus) {
     const { error } = await supabase
       .from('loans')
-      .update({ status: newStatus, admin_id: user?.id, updated_at: new Date().toISOString() })
+      .update({ status: newStatus, admin_id: user?.user_id, updated_at: new Date().toISOString() })
       .eq('id', loanId)
 
     if (error) {

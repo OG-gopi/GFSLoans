@@ -10,10 +10,10 @@ interface RouteGuardProps {
 }
 
 export function RouteGuard({ children, allowedRoles, requireAuth = true }: RouteGuardProps) {
-  const { isAuthenticated, role, isLoading } = useAuthStore()
+  const { isAuthenticated, role, isInitialized } = useAuthStore()
   const location = useLocation()
 
-  if (isLoading) {
+  if (!isInitialized) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-navy-900">
         <div className="flex flex-col items-center gap-4">

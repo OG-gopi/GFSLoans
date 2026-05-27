@@ -50,19 +50,30 @@ export default function UsersPage() {
   async function createUser() {
     setCreating(true)
     try {
-      const { data, error } = await supabase.auth.admin.createUser({
-        email: newUser.email,
-        password: newUser.password,
-        email_confirm: true,
-        user_metadata: { full_name: newUser.full_name, role: newUser.role, module: getModuleFromRole(newUser.role) },
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('No active session')
+
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          email: newUser.email,
+          password: newUser.password,
+          full_name: newUser.full_name,
+          phone: newUser.phone,
+          role: newUser.role,
+        })
       })
-      if (error) throw error
-      // Update profile with correct role
-      await supabase.from('profiles').update({
-        role: newUser.role,
-        phone: newUser.phone,
-        module: getModuleFromRole(newUser.role) as any,
-      }).eq('user_id', data.user.id)
+
+      const data = await response.json()
+      
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.error || 'Failed to create user')
+      }
+
       toast.success('User created successfully')
       setShowCreateModal(false)
       setNewUser({ email: '', full_name: '', phone: '', role: 'loan_agent', password: '' })
@@ -73,6 +84,7 @@ export default function UsersPage() {
       setCreating(false)
     }
   }
+
 
   function getModuleFromRole(role: UserRole): string {
     if (role.includes('loan')) return 'loans'
@@ -203,7 +215,7 @@ export default function UsersPage() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="glass-panel w-full max-w-md mx-4 rounded-2xl p-6"
+            className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6"
           >
             <div className="flex items-center gap-2 mb-6">
               <Shield className="w-5 h-5 text-gold-400" />

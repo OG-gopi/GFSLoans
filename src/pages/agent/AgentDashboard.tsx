@@ -29,15 +29,15 @@ export default function AgentDashboard() {
   async function loadDashboard() {
     setIsLoading(true)
     try {
-      if (!user?.id) return
+      if (!user?.user_id) return
 
       // Load counts
       const [custRes, followRes, loansRes, policiesRes, invsRes] = await Promise.all([
-        supabase.from('customers').select('id', { count: 'exact' }).eq('agent_id', user.id).eq('is_deleted', false),
-        supabase.from('follow_ups').select('id', { count: 'exact' }).eq('agent_id', user.id).eq('is_completed', false),
-        supabase.from('loans').select('id, status').eq('agent_id', user.id).eq('is_deleted', false),
-        supabase.from('insurance_policies').select('id, status').eq('agent_id', user.id).eq('is_deleted', false),
-        supabase.from('investments').select('id, status').eq('agent_id', user.id).eq('is_deleted', false)
+        supabase.from('customers').select('id', { count: 'exact' }).eq('agent_id', user.user_id).eq('is_deleted', false),
+        supabase.from('follow_ups').select('id', { count: 'exact' }).eq('agent_id', user.user_id).eq('is_completed', false),
+        supabase.from('loans').select('id, status').eq('agent_id', user.user_id).eq('is_deleted', false),
+        supabase.from('insurance_policies').select('id, status').eq('agent_id', user.user_id).eq('is_deleted', false),
+        supabase.from('investments').select('id, status').eq('agent_id', user.user_id).eq('is_deleted', false)
       ])
 
       const totalLoans = loansRes.data || []
@@ -60,7 +60,7 @@ export default function AgentDashboard() {
       const { data: fUps } = await supabase
         .from('follow_ups')
         .select('*, customer:customers(full_name, phone)')
-        .eq('agent_id', user.id)
+        .eq('agent_id', user.user_id)
         .eq('is_completed', false)
         .order('scheduled_at', { ascending: true })
         .limit(5)
@@ -71,7 +71,7 @@ export default function AgentDashboard() {
       const { data: recentCusts } = await supabase
         .from('customers')
         .select('*')
-        .eq('agent_id', user.id)
+        .eq('agent_id', user.user_id)
         .eq('is_deleted', false)
         .order('created_at', { ascending: false })
         .limit(5)

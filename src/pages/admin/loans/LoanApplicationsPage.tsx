@@ -95,7 +95,7 @@ export default function LoanApplicationsPage() {
         .update({
           status: newStatus,
           rejection_reason: reason || null,
-          admin_id: user?.id,
+          admin_id: user?.user_id,
           updated_at: new Date().toISOString()
         })
         .eq('id', loanId)
@@ -111,7 +111,7 @@ export default function LoanApplicationsPage() {
 
       // Track Audit Log
       await supabase.from('activity_logs').insert({
-        user_id: user?.id,
+        user_id: user?.user_id,
         action: newStatus.toUpperCase(),
         entity_type: 'loan',
         entity_id: loanId,
@@ -335,54 +335,54 @@ export default function LoanApplicationsPage() {
           <motion.div
             initial={{ opacity: 0, x: 200 }}
             animate={{ opacity: 1, x: 0 }}
-            className="relative w-full max-w-xl h-full bg-navy-850 border-l border-navy-700/80 p-6 overflow-y-auto shadow-2xl flex flex-col justify-between"
+            className="relative w-full max-w-xl h-full bg-navy-900 border-l border-slate-200 p-6 overflow-y-auto shadow-2xl flex flex-col justify-between"
           >
             <div>
-              <div className="flex items-center justify-between border-b border-navy-700 pb-4 mb-6">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-4 mb-6">
                 <div>
-                  <h2 className="text-lg font-bold text-foreground">Application Detail</h2>
-                  <p className="text-xs text-navy-400 font-mono mt-0.5">ID: {selectedLoan.id}</p>
+                  <h2 className="text-lg font-bold text-slate-800">Application Detail</h2>
+                  <p className="text-xs text-slate-500 font-mono mt-0.5">ID: {selectedLoan.id}</p>
                 </div>
-                <button onClick={() => setSelectedLoan(null)} className="text-navy-400 hover:text-white">✕</button>
+                <button onClick={() => setSelectedLoan(null)} className="text-slate-500 hover:text-slate-800">✕</button>
               </div>
 
               {/* Customer Profile */}
-              <div className="gfs-card p-4 border border-navy-700 bg-navy-900/40 mb-6">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-gold-400 mb-3">Customer Personal Info</h3>
+              <div className="gfs-card p-4 mb-6">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-primary mb-3">Customer Personal Info</h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <p className="text-navy-400 text-xs">Full Name</p>
-                    <p className="text-white font-medium mt-0.5">{(selectedLoan as any).customer?.full_name}</p>
+                    <p className="text-slate-500 text-xs">Full Name</p>
+                    <p className="text-slate-800 font-medium mt-0.5">{(selectedLoan as any).customer?.full_name}</p>
                   </div>
                   <div>
-                    <p className="text-navy-400 text-xs">Phone Number</p>
-                    <p className="text-white font-medium mt-0.5">{(selectedLoan as any).customer?.phone || '—'}</p>
+                    <p className="text-slate-500 text-xs">Phone Number</p>
+                    <p className="text-slate-800 font-medium mt-0.5">{(selectedLoan as any).customer?.phone || '—'}</p>
                   </div>
                   <div>
-                    <p className="text-navy-400 text-xs">Email Address</p>
-                    <p className="text-white truncate mt-0.5">{(selectedLoan as any).customer?.email || '—'}</p>
+                    <p className="text-slate-500 text-xs">Email Address</p>
+                    <p className="text-slate-800 truncate mt-0.5">{(selectedLoan as any).customer?.email || '—'}</p>
                   </div>
                   <div>
-                    <p className="text-navy-400 text-xs">Occupation</p>
-                    <p className="text-white mt-0.5">{(selectedLoan as any).customer?.occupation || '—'}</p>
+                    <p className="text-slate-500 text-xs">Occupation</p>
+                    <p className="text-slate-800 mt-0.5">{(selectedLoan as any).customer?.occupation || '—'}</p>
                   </div>
                 </div>
               </div>
 
               {/* Financial Metrics */}
-              <div className="gfs-card p-4 border border-navy-700 bg-navy-900/40 mb-6">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-gold-400 mb-3">Credit & Income Assessment</h3>
+              <div className="gfs-card p-4 mb-6">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-primary mb-3">Credit & Income Assessment</h3>
                 <div className="grid grid-cols-3 gap-4 text-sm">
                   <div>
-                    <p className="text-navy-400 text-xs">CIBIL Bureau Score</p>
-                    <p className="text-white font-bold mt-1 text-base">{(selectedLoan as any).customer?.cibil_score || '—'}</p>
+                    <p className="text-slate-500 text-xs">CIBIL Bureau Score</p>
+                    <p className="text-slate-800 font-bold mt-1 text-base">{(selectedLoan as any).customer?.cibil_score || '—'}</p>
                   </div>
                   <div>
-                    <p className="text-navy-400 text-xs">Monthly Income</p>
-                    <p className="text-emerald-400 font-bold mt-1 text-base">{formatCurrency((selectedLoan as any).customer?.monthly_income || 0)}</p>
+                    <p className="text-slate-500 text-xs">Monthly Income</p>
+                    <p className="text-emerald-600 font-bold mt-1 text-base">{formatCurrency((selectedLoan as any).customer?.monthly_income || 0)}</p>
                   </div>
                   <div>
-                    <p className="text-navy-400 text-xs">Application Status</p>
+                    <p className="text-slate-500 text-xs">Application Status</p>
                     <span className={cn("inline-block text-xs px-2 py-0.5 rounded font-bold mt-1", getLoanStatusColor(selectedLoan.status))}>
                       {selectedLoan.status.toUpperCase()}
                     </span>
@@ -391,24 +391,24 @@ export default function LoanApplicationsPage() {
               </div>
 
               {/* Loan Details */}
-              <div className="gfs-card p-4 border border-navy-700 bg-navy-900/40">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-gold-400 mb-3">Loan Details</h3>
+              <div className="gfs-card p-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-primary mb-3">Loan Details</h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <p className="text-navy-400 text-xs">Loan Scheme</p>
-                    <p className="text-white mt-0.5">{getLoanTypeLabel(selectedLoan.loan_type)}</p>
+                    <p className="text-slate-500 text-xs">Loan Scheme</p>
+                    <p className="text-slate-800 mt-0.5">{getLoanTypeLabel(selectedLoan.loan_type)}</p>
                   </div>
                   <div>
-                    <p className="text-navy-400 text-xs">Requested Amount</p>
-                    <p className="text-gold-400 font-bold mt-0.5">{formatCurrency(selectedLoan.loan_amount)}</p>
+                    <p className="text-slate-500 text-xs">Requested Amount</p>
+                    <p className="text-primary font-bold mt-0.5">{formatCurrency(selectedLoan.loan_amount)}</p>
                   </div>
                   <div>
-                    <p className="text-navy-400 text-xs">Tenure</p>
-                    <p className="text-white mt-0.5">{selectedLoan.tenure_months} Months</p>
+                    <p className="text-slate-500 text-xs">Tenure</p>
+                    <p className="text-slate-800 mt-0.5">{selectedLoan.tenure_months} Months</p>
                   </div>
                   <div>
-                    <p className="text-navy-400 text-xs">Purpose</p>
-                    <p className="text-white mt-0.5">{selectedLoan.purpose || '—'}</p>
+                    <p className="text-slate-500 text-xs">Purpose</p>
+                    <p className="text-slate-800 mt-0.5">{selectedLoan.purpose || '—'}</p>
                   </div>
                 </div>
                 {selectedLoan.rejection_reason && (
@@ -422,19 +422,19 @@ export default function LoanApplicationsPage() {
 
             {/* Bottom Actions inside detail card */}
             {['lead', 'verification'].includes(selectedLoan.status) && (
-              <div className="flex gap-3 border-t border-navy-700 pt-4 mt-6">
+              <div className="flex gap-3 border-t border-slate-200 pt-4 mt-6">
                 <button
                   onClick={() => {
                     setRejectingLoanId(selectedLoan.id)
                     setRejectionReason('')
                   }}
-                  className="flex-1 border border-red-500/40 text-red-400 py-2.5 rounded-xl hover:bg-red-500/10 text-sm font-semibold transition-colors"
+                  className="flex-1 border border-red-200 text-red-600 py-2.5 rounded-xl hover:bg-red-50 hover:border-red-300 text-sm font-semibold transition-colors"
                 >
                   Decline Application
                 </button>
                 <button
                   onClick={() => handleStatusChange(selectedLoan.id, 'approved')}
-                  className="flex-1 bg-gold-500 text-navy-900 py-2.5 rounded-xl hover:bg-gold-400 text-sm font-bold transition-all"
+                  className="flex-1 bg-primary text-white py-2.5 rounded-xl hover:bg-primary/90 text-sm font-bold transition-all shadow-sm shadow-primary/20"
                 >
                   Approve Application
                 </button>

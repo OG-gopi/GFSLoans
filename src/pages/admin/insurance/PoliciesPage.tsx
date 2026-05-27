@@ -49,7 +49,7 @@ export default function PoliciesPage() {
         .from('insurance_policies')
         .update({
           status: newStatus,
-          admin_id: user?.id,
+          admin_id: user?.user_id,
           updated_at: new Date().toISOString()
         })
         .eq('id', policyId)

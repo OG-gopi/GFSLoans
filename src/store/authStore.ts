@@ -7,6 +7,7 @@ interface AuthState {
   user: Profile | null
   role: UserRole | null
   isLoading: boolean
+  isInitialized: boolean
   isAuthenticated: boolean
   sessionExpiry: string | null
   setUser: (user: Profile | null) => void
@@ -22,6 +23,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       role: null,
       isLoading: true,
+      isInitialized: false,
       isAuthenticated: false,
       sessionExpiry: null,
 
@@ -41,10 +43,12 @@ export const useAuthStore = create<AuthState>()(
           role: null,
           isAuthenticated: false,
           sessionExpiry: null,
+          isInitialized: true,
         })
       },
 
       initialize: async () => {
+        console.log('[GFS Auth DEBUG] initialize start, setting isLoading: true')
         set({ isLoading: true })
         
         // Transparent Offline Demo mode check
@@ -52,21 +56,34 @@ export const useAuthStore = create<AuthState>()(
           console.warn('[GFS Auth] Running in Offline Demo Mode. Bypassing network initialization.')
           const current = get()
           if (current.isAuthenticated && current.user) {
-            set({ isLoading: false })
+            console.log('[GFS Auth DEBUG] Offline Demo Mode: already authenticated, setting isLoading: false, isInitialized: true')
+            set({ isLoading: false, isInitialized: true })
             return
           }
-          set({ user: null, role: null, isAuthenticated: false, isLoading: false })
+          console.log('[GFS Auth DEBUG] Offline Demo Mode: resetting auth state, setting isLoading: false, isInitialized: true')
+          set({ user: null, role: null, isAuthenticated: false, isLoading: false, isInitialized: true })
           return
         }
 
         try {
+          console.log('[GFS Auth DEBUG] Calling supabase.auth.getSession()...')
           const { data: { session } } = await supabase.auth.getSession()
+          console.log('[GFS Auth DEBUG] getSession resolved. Session exists:', !!session)
+          
           if (session?.user) {
-            const { data: profile } = await supabase
+            console.log('[GFS Auth DEBUG] Session user ID:', session.user.id)
+            console.log('[GFS Auth DEBUG] Fetching profile from database...')
+            const { data: profile, error } = await supabase
               .from('profiles')
               .select('*')
               .eq('user_id', session.user.id)
               .single()
+
+            if (error) {
+              console.error('[GFS Auth DEBUG] Fetch profile error:', error)
+            } else {
+              console.log('[GFS Auth DEBUG] Profile fetched successfully:', profile)
+            }
 
             if (profile) {
               set({
@@ -77,13 +94,19 @@ export const useAuthStore = create<AuthState>()(
                   ? new Date(session.expires_at * 1000).toISOString()
                   : null,
               })
+              console.log('[GFS Auth DEBUG] Set authenticated user state.')
+            } else {
+              console.warn('[GFS Auth DEBUG] Profile not found in database for logged-in user.')
             }
+          } else {
+            console.log('[GFS Auth DEBUG] No active session found on Supabase server.')
           }
         } catch (error) {
-          console.error('[GFS Auth] Initialization error:', error)
+          console.error('[GFS Auth DEBUG] Initialization error caught:', error)
           set({ user: null, role: null, isAuthenticated: false })
         } finally {
-          set({ isLoading: false })
+          console.log('[GFS Auth DEBUG] Finally block: setting isLoading: false, isInitialized: true')
+          set({ isLoading: false, isInitialized: true })
         }
       },
     }),

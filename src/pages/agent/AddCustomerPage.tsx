@@ -86,7 +86,7 @@ export default function AddCustomerPage() {
   const handleSubmit = async () => {
     setSubmitting(true)
     try {
-      if (!user?.id) throw new Error('You must be signed in to register customers')
+      if (!user?.user_id) throw new Error('You must be signed in to register customers')
 
       // 1. Create customer profile
       const { data: customer, error: custErr } = await supabase
@@ -105,7 +105,7 @@ export default function AddCustomerPage() {
           employer: formData.employer || null,
           monthly_income: parseFloat(formData.monthlyIncome) || 0,
           cibil_score: parseInt(formData.cibilScore) || 750,
-          agent_id: user.id
+          agent_id: user.user_id
         })
         .select()
         .single()
@@ -123,7 +123,7 @@ export default function AddCustomerPage() {
             tenure_months: parseInt(formData.tenureMonths) || 12,
             purpose: formData.purpose || null,
             status: 'lead',
-            agent_id: user.id
+            agent_id: user.user_id
           })
         if (loanErr) throw loanErr
       } else if (formData.selectedModule === 'insurance') {
@@ -139,7 +139,7 @@ export default function AddCustomerPage() {
             status: 'pending',
             start_date: new Date().toISOString(),
             end_date: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
-            agent_id: user.id
+            agent_id: user.user_id
           })
         if (insErr) throw insErr
       } else if (formData.selectedModule === 'investments') {
@@ -153,7 +153,7 @@ export default function AddCustomerPage() {
             invested_amount: parseFloat(formData.investedAmount) || 0,
             current_value: parseFloat(formData.investedAmount) || 0,
             risk_level: formData.riskLevel,
-            agent_id: user.id
+            agent_id: user.user_id
           })
         if (invErr) throw invErr
       }

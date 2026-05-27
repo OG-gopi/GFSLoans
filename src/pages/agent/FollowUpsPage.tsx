@@ -30,11 +30,11 @@ export default function FollowUpsPage() {
   async function loadFollowups() {
     setIsLoading(true)
     try {
-      if (!user?.id) return
+      if (!user?.user_id) return
       const { data, error } = await supabase
         .from('follow_ups')
         .select('*, customer:customers(full_name, phone)')
-        .eq('agent_id', user.id)
+        .eq('agent_id', user.user_id)
         .order('scheduled_at', { ascending: true })
 
       if (error) throw error
@@ -48,11 +48,11 @@ export default function FollowUpsPage() {
 
   async function loadCustomers() {
     try {
-      if (!user?.id) return
+      if (!user?.user_id) return
       const { data } = await supabase
         .from('customers')
         .select('id, full_name')
-        .eq('agent_id', user.id)
+        .eq('agent_id', user.user_id)
         .eq('is_deleted', false)
       setCustomers(data || [])
     } catch (err) {
@@ -76,14 +76,14 @@ export default function FollowUpsPage() {
   }
 
   async function handleCreateFollowup() {
-    if (!selectedCustId || !scheduledAt || !user?.id) return
+    if (!selectedCustId || !scheduledAt || !user?.user_id) return
     setScheduling(true)
     try {
       const { data, error } = await supabase
         .from('follow_ups')
         .insert({
           customer_id: selectedCustId,
-          agent_id: user.id,
+          agent_id: user.user_id,
           scheduled_at: new Date(scheduledAt).toISOString(),
           notes: fupNotes.trim(),
           is_completed: false

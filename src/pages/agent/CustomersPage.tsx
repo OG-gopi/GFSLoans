@@ -19,11 +19,11 @@ export default function CustomersPage() {
   async function loadCustomers() {
     setIsLoading(true)
     try {
-      if (!user?.id) return
+      if (!user?.user_id) return
       const { data, error } = await supabase
         .from('customers')
         .select('*')
-        .eq('agent_id', user.id)
+        .eq('agent_id', user.user_id)
         .eq('is_deleted', false)
         .order('full_name', { ascending: true })
 
@@ -47,7 +47,7 @@ export default function CustomersPage() {
       <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
         <div>
           <h1 className="text-xl font-display font-bold text-foreground">My Customers</h1>
-          <p className="text-navy-400 text-sm mt-0.5">{customers.length} registered profiles in your directory</p>
+          <p className="text-slate-500 text-sm mt-0.5">{customers.length} registered profiles in your directory</p>
         </div>
         <a
           href="/agent/customers/new"
@@ -58,7 +58,7 @@ export default function CustomersPage() {
       </div>
 
       <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-navy-400" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
         <input
           className="gfs-input pl-9 w-full"
           placeholder="Search customers by name or phone..."
@@ -101,20 +101,20 @@ export default function CustomersPage() {
                       <div className="w-8 h-8 rounded-full bg-gold-500/20 border border-gold-500/30 flex items-center justify-center text-gold-400 text-xs font-bold shrink-0">
                         {generateInitials(cust.full_name)}
                       </div>
-                      <span className="font-semibold text-white">{cust.full_name}</span>
+                      <span className="font-semibold text-slate-800">{cust.full_name}</span>
                     </div>
                   </td>
                   <td>
-                    <span className="text-navy-300 font-medium">{cust.phone}</span>
+                    <span className="text-slate-600 font-medium">{cust.phone}</span>
                   </td>
-                  <td className="text-navy-400 text-sm">{cust.email || '—'}</td>
+                  <td className="text-slate-500 text-sm">{cust.email || '—'}</td>
                   <td>{cust.occupation || '—'}</td>
-                  <td className="text-navy-400 text-xs">{formatDate(cust.date_of_birth)}</td>
+                  <td className="text-slate-500 text-xs">{formatDate(cust.date_of_birth)}</td>
                   <td>
                     <div className="flex items-center gap-2">
                       <a
                         href={`/agent/customers/${cust.id}`}
-                        className="p-1.5 rounded hover:bg-navy-700 text-navy-400 hover:text-white transition-colors"
+                        className="p-1.5 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-800 transition-colors"
                         title="View Profile Timeline"
                       >
                         <Eye className="w-4 h-4" />
@@ -125,7 +125,7 @@ export default function CustomersPage() {
               ))}
               {!isLoading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-navy-400 text-sm">
+                  <td colSpan={6} className="text-center py-12 text-slate-400 text-sm">
                     <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
                     No customers found matching directory filters.
                   </td>

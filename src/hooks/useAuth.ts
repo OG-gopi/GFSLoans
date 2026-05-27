@@ -9,11 +9,8 @@ export function useAuth() {
 
   useEffect(() => {
     if ((supabase as any).supabaseUrl.includes('placeholder-project.supabase.co')) {
-      initialize()
       return
     }
-
-    initialize()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {

@@ -77,14 +77,14 @@ export default function CustomerDetail() {
   }
 
   async function handleAddNote() {
-    if (!newNote.trim() || !id || !user?.id) return
+    if (!newNote.trim() || !id || !user?.user_id) return
     setSubmittingNote(true)
     try {
       const { data, error } = await supabase
         .from('notes')
         .insert({
           customer_id: id,
-          agent_id: user.id,
+          agent_id: user.user_id,
           content: newNote.trim()
         })
         .select()
@@ -101,14 +101,14 @@ export default function CustomerDetail() {
   }
 
   async function handleScheduleFollowup() {
-    if (!fupDate || !id || !user?.id) return
+    if (!fupDate || !id || !user?.user_id) return
     setScheduling(true)
     try {
       const { data, error } = await supabase
         .from('follow_ups')
         .insert({
           customer_id: id,
-          agent_id: user.id,
+          agent_id: user.user_id,
           scheduled_at: new Date(fupDate).toISOString(),
           notes: fupNotes.trim(),
           is_completed: false
@@ -140,22 +140,22 @@ export default function CustomerDetail() {
 
   return (
     <AppShell pageTitle={customer?.full_name || 'Customer Detail'}>
-      <button onClick={() => navigate('/agent/customers')} className="flex items-center gap-1.5 text-navy-400 hover:text-white transition-colors mb-6 text-sm">
+      <button onClick={() => navigate('/agent/customers')} className="flex items-center gap-1.5 text-slate-500 hover:text-slate-800 transition-colors mb-6 text-sm">
         <ChevronLeft className="w-4 h-4" /> Back to Directory
       </button>
 
       {/* Customer Header card */}
-      <div className="gfs-card p-6 border border-navy-700 bg-navy-850 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="gfs-card p-6 mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 rounded-2xl bg-gold-500/20 border border-gold-500/30 flex items-center justify-center text-gold-400 text-xl font-bold shrink-0">
             {generateInitials(customer?.full_name)}
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white flex items-center gap-2">
+            <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
               {customer?.full_name}
-              <span className="text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">Verified KYC</span>
+              <span className="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-600 border border-emerald-200">Verified KYC</span>
             </h1>
-            <p className="text-navy-400 text-sm mt-0.5 flex items-center gap-2 flex-wrap">
+            <p className="text-slate-500 text-sm mt-0.5 flex items-center gap-2 flex-wrap">
               <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5" /> {customer?.phone}</span>
               <span>•</span>
               <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5" /> {customer?.email || 'No Email'}</span>
@@ -174,27 +174,27 @@ export default function CustomerDetail() {
         {/* Left Assess Column */}
         <div className="space-y-6">
           {/* Credit CIBIL Score Card */}
-          <div className="gfs-card p-5 border border-navy-700 bg-navy-900/30">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-gold-400 mb-4">Underwriting Audit</h3>
+          <div className="gfs-card p-5">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-primary mb-4">Underwriting Audit</h3>
             <div className="space-y-4">
               <div>
-                <p className="text-navy-400 text-xs">Bureau CIBIL Score</p>
+                <p className="text-slate-500 text-xs">Bureau CIBIL Score</p>
                 <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-2xl font-bold text-white">{customer?.cibil_score || '—'}</span>
-                  <span className="text-xs text-green-400">Standard Tier</span>
+                  <span className="text-2xl font-bold text-slate-800">{customer?.cibil_score || '—'}</span>
+                  <span className="text-xs text-emerald-600">Standard Tier</span>
                 </div>
               </div>
               <div>
-                <p className="text-navy-400 text-xs">Verified Income (Monthly)</p>
-                <p className="text-emerald-400 font-bold text-lg mt-0.5">{formatCurrency(customer?.monthly_income || 0)}</p>
+                <p className="text-slate-500 text-xs">Verified Income (Monthly)</p>
+                <p className="text-emerald-600 font-bold text-lg mt-0.5">{formatCurrency(customer?.monthly_income || 0)}</p>
               </div>
               <div>
-                <p className="text-navy-400 text-xs">Aadhaar (KYC masked)</p>
-                <p className="text-white font-mono text-sm mt-0.5">XXXX-XXXX-4930</p>
+                <p className="text-slate-500 text-xs">Aadhaar (KYC masked)</p>
+                <p className="text-slate-800 font-mono text-sm mt-0.5">XXXX-XXXX-4930</p>
               </div>
               <div>
-                <p className="text-navy-400 text-xs">PAN (KYC masked)</p>
-                <p className="text-white font-mono text-sm mt-0.5">XXXXXX492B</p>
+                <p className="text-slate-500 text-xs">PAN (KYC masked)</p>
+                <p className="text-slate-800 font-mono text-sm mt-0.5">XXXXXX492B</p>
               </div>
             </div>
           </div>
@@ -203,14 +203,14 @@ export default function CustomerDetail() {
         {/* Tab content area */}
         <div className="lg:col-span-3 space-y-6">
           {/* Tabs bar */}
-          <div className="flex border-b border-navy-700 overflow-x-auto gap-4">
+          <div className="flex border-b border-slate-200 overflow-x-auto gap-4">
             {['overview', 'loans', 'insurance', 'investments', 'notes', 'followups'].map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={cn(
                   "py-3 px-1 text-sm font-semibold capitalize border-b-2 transition-all w-max shrink-0",
-                  activeTab === tab ? "border-gold-500 text-gold-400" : "border-transparent text-navy-400 hover:text-white"
+                  activeTab === tab ? "border-primary text-primary" : "border-transparent text-slate-500 hover:text-slate-800"
                 )}
               >
                 {tab === 'followups' ? 'Followups' : tab}
@@ -223,30 +223,30 @@ export default function CustomerDetail() {
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                 {/* Active services count */}
                 <div className="grid grid-cols-3 gap-4">
-                  <div className="gfs-card p-4 bg-navy-900/40 text-center">
-                    <p className="text-2xl font-bold text-white">{loans.length}</p>
-                    <p className="text-navy-400 text-xs mt-0.5">Loan Schemes</p>
+                  <div className="gfs-card p-4 text-center">
+                    <p className="text-2xl font-bold text-slate-800">{loans.length}</p>
+                    <p className="text-slate-500 text-xs mt-0.5">Loan Schemes</p>
                   </div>
-                  <div className="gfs-card p-4 bg-navy-900/40 text-center">
-                    <p className="text-2xl font-bold text-white">{policies.length}</p>
-                    <p className="text-navy-400 text-xs mt-0.5">Insurance Policies</p>
+                  <div className="gfs-card p-4 text-center">
+                    <p className="text-2xl font-bold text-slate-800">{policies.length}</p>
+                    <p className="text-slate-500 text-xs mt-0.5">Insurance Policies</p>
                   </div>
-                  <div className="gfs-card p-4 bg-navy-900/40 text-center">
-                    <p className="text-2xl font-bold text-white">{investments.length}</p>
-                    <p className="text-navy-400 text-xs mt-0.5">Investments Folios</p>
+                  <div className="gfs-card p-4 text-center">
+                    <p className="text-2xl font-bold text-slate-800">{investments.length}</p>
+                    <p className="text-slate-500 text-xs mt-0.5">Investments Folios</p>
                   </div>
                 </div>
 
-                <div className="gfs-card p-5 border border-navy-700 bg-navy-900/40">
-                  <h3 className="text-white font-semibold mb-3">Address & Correspondence</h3>
+                <div className="gfs-card p-5">
+                  <h3 className="text-slate-800 font-semibold mb-3">Address & Correspondence</h3>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <p className="text-navy-400 text-xs">Pincode</p>
-                      <p className="text-white mt-0.5">{customer?.pincode || '—'}</p>
+                      <p className="text-slate-500 text-xs">Pincode</p>
+                      <p className="text-slate-800 mt-0.5">{customer?.pincode || '—'}</p>
                     </div>
                     <div>
-                      <p className="text-navy-400 text-xs">Employer</p>
-                      <p className="text-white mt-0.5">{customer?.employer || '—'}</p>
+                      <p className="text-slate-500 text-xs">Employer</p>
+                      <p className="text-slate-800 mt-0.5">{customer?.employer || '—'}</p>
                     </div>
                   </div>
                 </div>
@@ -256,51 +256,51 @@ export default function CustomerDetail() {
             {activeTab === 'loans' && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
                 {loans.map(loan => (
-                  <div key={loan.id} className="p-4 rounded-xl border border-navy-700 bg-navy-900/40 flex justify-between items-center">
+                  <div key={loan.id} className="gfs-card p-4 flex justify-between items-center">
                     <div>
-                      <h4 className="text-sm font-semibold text-white">Loan scheme Amount: {formatCurrency(loan.loan_amount)}</h4>
-                      <p className="text-xs text-navy-400 mt-0.5">Tenure: {loan.tenure_months} Months • Type: {loan.loan_type}</p>
+                      <h4 className="text-sm font-semibold text-slate-800">Loan scheme Amount: {formatCurrency(loan.loan_amount)}</h4>
+                      <p className="text-xs text-slate-500 mt-0.5">Tenure: {loan.tenure_months} Months • Type: {loan.loan_type}</p>
                     </div>
-                    <span className="text-xs px-2.5 py-0.5 rounded font-bold uppercase bg-navy-800 text-gold-400">
+                    <span className="text-xs px-2.5 py-0.5 rounded font-bold uppercase bg-slate-100 text-primary border border-slate-200">
                       {loan.status}
                     </span>
                   </div>
                 ))}
-                {loans.length === 0 && <p className="text-sm text-navy-400 text-center py-6">No loans registered.</p>}
+                {loans.length === 0 && <p className="text-sm text-slate-500 text-center py-6">No loans registered.</p>}
               </motion.div>
             )}
 
             {activeTab === 'insurance' && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
                 {policies.map(pol => (
-                  <div key={pol.id} className="p-4 rounded-xl border border-navy-700 bg-navy-900/40 flex justify-between items-center">
+                  <div key={pol.id} className="gfs-card p-4 flex justify-between items-center">
                     <div>
-                      <h4 className="text-sm font-semibold text-white">Sum Assured: {formatCurrency(pol.sum_assured)}</h4>
-                      <p className="text-xs text-navy-400 mt-0.5">Premium: {formatCurrency(pol.premium_amount)} • Frequency: {pol.payment_frequency}</p>
+                      <h4 className="text-sm font-semibold text-slate-800">Sum Assured: {formatCurrency(pol.sum_assured)}</h4>
+                      <p className="text-xs text-slate-500 mt-0.5">Premium: {formatCurrency(pol.premium_amount)} • Frequency: {pol.payment_frequency}</p>
                     </div>
-                    <span className="text-xs px-2.5 py-0.5 rounded font-bold uppercase bg-navy-800 text-gold-400">
+                    <span className="text-xs px-2.5 py-0.5 rounded font-bold uppercase bg-slate-100 text-primary border border-slate-200">
                       {pol.status}
                     </span>
                   </div>
                 ))}
-                {policies.length === 0 && <p className="text-sm text-navy-400 text-center py-6">No policies registered.</p>}
+                {policies.length === 0 && <p className="text-sm text-slate-500 text-center py-6">No policies registered.</p>}
               </motion.div>
             )}
 
             {activeTab === 'investments' && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
                 {investments.map(inv => (
-                  <div key={inv.id} className="p-4 rounded-xl border border-navy-700 bg-navy-900/40 flex justify-between items-center">
+                  <div key={inv.id} className="gfs-card p-4 flex justify-between items-center">
                     <div>
-                      <h4 className="text-sm font-semibold text-white">{inv.fund_name}</h4>
-                      <p className="text-xs text-navy-400 mt-0.5">Capital Invested: {formatCurrency(inv.invested_amount)} • Risk: {inv.risk_level}</p>
+                      <h4 className="text-sm font-semibold text-slate-800">{inv.fund_name}</h4>
+                      <p className="text-xs text-slate-500 mt-0.5">Capital Invested: {formatCurrency(inv.invested_amount)} • Risk: {inv.risk_level}</p>
                     </div>
-                    <span className="text-xs px-2.5 py-0.5 rounded font-bold uppercase bg-navy-800 text-gold-400">
+                    <span className="text-xs px-2.5 py-0.5 rounded font-bold uppercase bg-slate-100 text-primary border border-slate-200">
                       {inv.investment_type}
                     </span>
                   </div>
                 ))}
-                {investments.length === 0 && <p className="text-sm text-navy-400 text-center py-6">No active investments found.</p>}
+                {investments.length === 0 && <p className="text-sm text-slate-500 text-center py-6">No active investments found.</p>}
               </motion.div>
             )}
 
@@ -326,9 +326,9 @@ export default function CustomerDetail() {
 
                 <div className="space-y-3 mt-4">
                   {notes.map(note => (
-                    <div key={note.id} className="p-3.5 rounded-xl border border-navy-700/80 bg-navy-900/20">
-                      <p className="text-sm text-white">{note.content}</p>
-                      <p className="text-navy-400 text-xs mt-2">{formatDate(note.created_at)}</p>
+                    <div key={note.id} className="gfs-card p-3.5">
+                      <p className="text-sm text-slate-800">{note.content}</p>
+                      <p className="text-slate-500 text-xs mt-2">{formatDate(note.created_at)}</p>
                     </div>
                   ))}
                 </div>
@@ -338,10 +338,10 @@ export default function CustomerDetail() {
             {activeTab === 'followups' && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
                 {followups.map(fUp => (
-                  <div key={fUp.id} className="p-4 rounded-xl border border-navy-700 bg-navy-900/40 flex justify-between items-center">
+                  <div key={fUp.id} className="gfs-card p-4 flex justify-between items-center">
                     <div>
-                      <p className="text-sm font-semibold text-white">{fUp.notes || 'Routine Follow-up'}</p>
-                      <p className="text-xs text-navy-400 mt-0.5">Scheduled For: {formatDate(fUp.scheduled_at)}</p>
+                      <p className="text-sm font-semibold text-slate-800">{fUp.notes || 'Routine Follow-up'}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">Scheduled For: {formatDate(fUp.scheduled_at)}</p>
                     </div>
                     <span className={cn(
                       "text-xs px-2 py-0.5 rounded font-bold uppercase",

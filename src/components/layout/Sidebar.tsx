@@ -205,9 +205,9 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         <ul className="space-y-1 px-2">
           {navItems.map((item) => {
             const isActive =
-              item.path === '/dashboard'
-                ? location.pathname === item.path
-                : location.pathname.startsWith(item.path)
+              location.pathname === item.path ||
+              (location.pathname.startsWith(item.path + '/') && 
+               !navItems.some(nav => nav.path !== item.path && location.pathname.startsWith(nav.path) && nav.path.length > item.path.length))
 
             return (
               <li key={item.path}>
